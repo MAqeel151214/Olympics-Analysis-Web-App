@@ -158,6 +158,7 @@ season_option = st.sidebar.selectbox(
     'Season Filter',
     ['☀️ Summer', '❄️ Winter', '🏅 Both'],
     index=0,
+    help="Filter all data across the dashboard by Olympic season."
 )
 
 SEASON_MAP = {'☀️ Summer': 'Summer', '❄️ Winter': 'Winter', '🏅 Both': 'Both'}
@@ -175,6 +176,7 @@ user_menu = st.sidebar.radio(
     ('Medal Tally', 'Overall Analysis', 'Country-wise Analysis',
      'Athlete wise Analysis', '🌍 Medal Map', '⚔️ Country Comparison',
      '☀️❄️ Summer vs Winter'),
+    help="Navigate between different analytical views."
 )
 
 
@@ -221,7 +223,7 @@ if user_menu == 'Medal Tally':
     )
 
     csv = medal_tally.to_csv(index=False)
-    st.download_button("📥 Download as CSV", data=csv, file_name="medal_tally.csv", mime="text/csv")
+    st.download_button("📥 Download as CSV", data=csv, file_name="medal_tally.csv", mime="text/csv", help="Download the current medal tally view as a CSV file for offline analysis.")
 
     if selected_year == 'Overall' and selected_country == 'Overall':
         st.subheader('Top 15 Countries — Medal Breakdown')
@@ -348,11 +350,11 @@ if user_menu == 'Athlete wise Analysis':
     st.title('🏃 Athlete-wise Analysis')
 
     st.subheader('🔍 Athlete Search')
-    search_query = st.text_input('Search by athlete name', placeholder='e.g. Usain, Nadia, Phelps...')
+    search_query = st.text_input('Search by athlete name', placeholder='e.g. Usain, Nadia, Phelps...', help="Type part or full name of an athlete to view their Olympic history.")
     if search_query:
         results = helper.search_athlete(df, search_query)
         if results.empty:
-            st.warning(f'No athletes found matching "{search_query}"')
+            st.warning(f'No athletes found matching "{search_query}". Try using a partial name or checking the spelling.')
         else:
             n_athletes = results['Name'].nunique()
             st.success(f'Found {n_athletes} athlete(s) with {len(results)} records')
@@ -448,7 +450,7 @@ if user_menu == '⚔️ Country Comparison':
         c2 = st.selectbox('Country 2', countries_list, index=countries_list.index('China') if 'China' in countries_list else 1, format_func=format_country)
 
     if c1 == c2:
-        st.warning('Please select two different countries.')
+        st.warning('Please select two different countries to compare their head-to-head metrics.')
     else:
         comp = helper.compare_countries(df, c1, c2)
         st.subheader('📊 Summary')
