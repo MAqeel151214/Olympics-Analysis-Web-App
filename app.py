@@ -105,7 +105,16 @@ def load_data():
         df = pd.read_csv('athlete_events.csv')
         region_df = pd.read_csv('noc_regions.csv')
         df = preprocessing.preprocess(df, region_df)
-        return df
+
+        # Precompute region to ISO3 mapping for O(1) lookups
+        from helper import _noc_to_iso3
+        mapping_df = df.drop_duplicates('region').dropna(subset=['region'])
+        region_to_iso3 = {
+            row['region']: _noc_to_iso3(row['NOC'])
+            for _, row in mapping_df.iterrows()
+        }
+
+        return df, region_to_iso3
     except FileNotFoundError as e:
         st.error(f"Data file not found: {e.filename}")
         st.stop()
@@ -115,18 +124,13 @@ def load_data():
 
 
 with st.spinner("Loading Olympics data..."):
-    df_all = load_data()
+    df_all, region_to_iso3 = load_data()
 
 
 # ── Utility for Flags in Dataframes ──────────────────────────────────────────────
-def _get_iso3_from_region(df_ref, region_name):
-    # Lookup NOC from region name using the original dataframe
-    subset = df_ref[df_ref['region'] == region_name]
-    if not subset.empty:
-        noc = subset.iloc[0]['NOC']
-        from helper import _noc_to_iso3
-        return _noc_to_iso3(noc)
-    return "UNKNOWN"
+def _get_iso3_from_region(region_mapping, region_name):
+    # Fast O(1) lookup using precomputed dictionary
+    return region_mapping.get(region_name, "UNKNOWN")
 
 def inject_flags(target_df, region_col='region'):
     """Adds a 'Flag' column with image URLs to a dataframe based on its region."""
@@ -135,7 +139,7 @@ def inject_flags(target_df, region_col='region'):
         unique_regions = target_df[region_col].unique()
         flag_map = {}
         for r in unique_regions:
-            iso = _get_iso3_from_region(df_all, r)
+            iso = _get_iso3_from_region(region_to_iso3, r)
             flag_map[r] = ui_utils.get_flag_url(iso)
         
         # Insert Flag as the first column visually
@@ -188,7 +192,7 @@ if user_menu == 'Medal Tally':
     # Custom formatters for dropdowns
     def format_country(c):
         if c == 'Overall': return '🌍 Overall'
-        iso = _get_iso3_from_region(df_all, c)
+        iso = _get_iso3_from_region(region_to_iso3, c)
         return f"{ui_utils.get_country_emoji(iso)} {c}"
 
     selected_year = st.sidebar.selectbox('Select Year', years)
@@ -315,7 +319,7 @@ if user_menu == 'Country-wise Analysis':
     country_filtered = [c for c in country if c != 'Overall']
     
     def format_country(c):
-        iso = _get_iso3_from_region(df_all, c)
+        iso = _get_iso3_from_region(region_to_iso3, c)
         return f"{ui_utils.get_country_emoji(iso)} {c}"
 
     selected_country = st.sidebar.selectbox('Select Country', country_filtered, format_func=format_country)
@@ -438,7 +442,7 @@ if user_menu == '⚔️ Country Comparison':
     countries_list = sorted([c for c in df['region'].dropna().unique()])
 
     def format_country(c):
-        iso = _get_iso3_from_region(df_all, c)
+        iso = _get_iso3_from_region(region_to_iso3, c)
         return f"{ui_utils.get_country_emoji(iso)} {c}"
 
     col1, col2 = st.columns(2)
