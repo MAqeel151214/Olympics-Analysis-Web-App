@@ -1,0 +1,4 @@
+## 2024-08-06 - Streamlit UI Freezing on Dropdown Renders
+**Learning:** In a Streamlit application handling large datasets (~270,000 rows like `df_all`), performing operations like `df[df['column'] == value]` inside a UI rendering loop (e.g., building a flag image mapping or formatting a dropdown list) can cause massive bottlenecks. Every lookup was O(N) over 270K rows, repeated ~200 times for country dropdowns, leading to ~1 second of synchronous blocking UI thread time.
+
+**Action:** When mapping lookup values that are static across the dataset (e.g., Region to ISO3 code), always precompute a lookup dictionary (`df.drop_duplicates().set_index(...).to_dict()`) outside the render loop (preferably in an `@st.cache_data` function). Change O(N) DataFrame filter searches to O(1) dictionary `.get()` lookups.
